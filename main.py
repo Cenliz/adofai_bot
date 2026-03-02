@@ -13,6 +13,9 @@ class Map_part():
         self.__actions = actions
         return
     
+    def get_angles(self)->list[float]:
+        return self.__angles
+    
     def get_bpm(self)->int:
         return self.__bpm
 
@@ -46,12 +49,12 @@ def take_board(path:str)->list[Map_part]:
     return board
 
 def read(file:str)->str:
-    opened_file = open(file,'r',-1,"UTF-8")
+    opened_file = open(file,encoding="UTF-8")
     content = opened_file.read()
     opened_file.close()
     return content
 
-def scrap_name(file:str)->str|int: # err code 1 = name not found
+def scrap_name(file:str)->str|int: # err code 1: name not found
     scraped_file = file.splitlines()
     for line in scraped_file:
         if "\t\t\"song\": \"" in line:
@@ -71,6 +74,7 @@ def scrap_bpm(file:str)->int: # err code : -1: bpm not found
     for line in scraped_file:
         if "\t\t\"bpm\": " in line:
             return int(line[9:-2])
+    print("scrap_bpm: err code -1")
     return -1
 
 def scrap_actions(file:str)->list[str]|None:
@@ -89,6 +93,13 @@ def scrap_actions(file:str)->list[str]|None:
         return None
     return scrap_list[2:]
 
+def calcul_timing(map_part:Map_part,current_tile:int): # "err code" 100: angle not supported
+    a = map_part.get_angles()[current_tile - 1] + map_part.get_angles()[current_tile]
+    if a == map_part.get_angles()[current_tile - 1]:
+        return 1
+    print("calcul_timing: err code 100")
+    return 100
+
 # kawaii... = 2895342067
 path = "C:\\Program Files (x86)\\Steam\\steamapps\\Workshop\\Content\\977950\\" + "3018063128\\" # game path + map
 board = take_board(path)
@@ -100,10 +111,14 @@ for i in board:
 
 keyboard.wait('s') # start
 start = time.time()
+current_tile = 1 # manual start
+
 while True:
-    if keyboard.is_pressed('f'): # failsafesf
+    if keyboard.is_pressed('f'): # fail safe
         break
-    if time.time() - start >= 1/(board[-1].get_bpm()/60):
+    timing = calcul_timing(board[-1],current_tile) # temp, main used
+    if time.time() - start >= (1/(board[-1].get_bpm()/60))*timing:
         start = time.time()
         keyboard.press_and_release('j')
+        current_tile += 1
         
