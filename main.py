@@ -6,7 +6,7 @@
 import keyboard,time
 
 class Map_part():
-    def __init__(self,name:str,angles:list[float],bpm:int,actions:list[str]|None) -> None:
+    def __init__(self,name:str,angles:list[float],bpm:int,actions:list[tuple]|None) -> None:
         self.__name = name
         self.__bpm = bpm
         self.__angles = angles
@@ -18,6 +18,9 @@ class Map_part():
     
     def get_bpm(self)->int:
         return self.__bpm
+    
+    def get_actions(self)->list[tuple]|None:
+        return self.__actions
 
     def __str__(self) -> str:
         if self.__actions is None:
@@ -87,22 +90,68 @@ def scrap_actions(file:str)->list[str]|None:
         if scraped_file[i] == "\t]":
             break
         if len(scrap_list) >= 1:
-            scrap_list.append(scraped_file[i])
+            if "\"Twirl\"" in scraped_file[i]:
+                type = "Twirl"
+                floor_number = int(scraped_file[i][13:scraped_file[i].find(",")])
+                scrap_list.append((type, floor_number))
+            elif "\"SetSpeed\"" in scraped_file[i]:
+                type = "SetSpeed"
+                floor_number = int(scraped_file[i][13:scraped_file[i].find(",")])
+                bpm = float(scraped_file[i][find_sub_str(scraped_file[i],",",3)+20:find_sub_str(scraped_file[i],",",4)])
+                bpm_mult = float(scraped_file[i][find_sub_str(scraped_file[i],",",4)+19:find_sub_str(scraped_file[i],",",5)])
+                scrap_list.append((type,floor_number,bpm,bpm_mult)) # (type, floor number, bpm, bpm mult)
     
     if len(scrap_list) == 0:
         return None
     return scrap_list[2:]
 
-def calcul_timing(map_part:Map_part,current_tile:int): # "err code" 100: angle not supported
-    a = map_part.get_angles()[current_tile - 1] + map_part.get_angles()[current_tile]
-    if a == map_part.get_angles()[current_tile - 1]:
-        return 1
+def find_sub_str(string:str,sub_string:str,occurence:int=1)->int:
+        if not(sub_string in string):
+            return 0
+        if occurence == 1:
+            return string.find(sub_string)
+        add = string.find(sub_string)+1
+        return find_sub_str(string[add:],sub_string,occurence-1) + add
+#MODIF!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+def calcul_timing(map_part:Map_part,current_tile:int,twirl:bool)->float: # "err code" 100: angle not supported
+    current_angle = map_part.get_angles()[current_tile - 1]
+    next_angle = map_part.get_angles()[current_tile]
+    if current_angle == next_angle:
+            return 1
+    if twirl:
+        if next_angle == current_angle - 45:
+            return 0.75
+        elif next_angle == current_angle + 45:
+            return 1.25
+        elif next_angle == current_angle - 90:
+            return 0.5
+        elif next_angle == current_angle + 90:
+            return 1.5
+        elif next_angle == current_angle - 135:
+            return 0.25
+        elif next_angle == current_angle + 135:
+            return 1.75
+    #else
+    if next_angle == current_angle + 45:
+        return 0.75
+    elif next_angle == current_angle - 45:
+        return 1.25
+    elif next_angle == current_angle + 90:
+        return 0.5
+    elif next_angle == current_angle - 90:
+        return 1.5
+    elif next_angle == current_angle + 135:
+        return 0.25
+    elif next_angle == current_angle - 135:
+        return 1.75
+    
     print("calcul_timing: err code 100")
     return 100
 
 # kawaii... = 2895342067
 path = "C:\\Program Files (x86)\\Steam\\steamapps\\Workshop\\Content\\977950\\" + "3018063128\\" # game path + map
 board = take_board(path)
+twirl = False
 
 ###############################################################################
 for i in board:
@@ -116,9 +165,21 @@ current_tile = 1 # manual start
 while True:
     if keyboard.is_pressed('f'): # fail safe
         break
-    timing = calcul_timing(board[-1],current_tile) # temp, main used
+    timing = calcul_timing(board[-1],current_tile,twirl) # temp, main used
     if time.time() - start >= (1/(board[-1].get_bpm()/60))*timing:
         start = time.time()
         keyboard.press_and_release('j')
+        for action in board[-1].get_actions():
+            if action[1] == current_tile:
+                #aply effect
+                if action[0] == "Twirl":
+                    if twirl == True:
+                        twirl = False
+                    else:
+                        twirl = True
+                if action[0] == "SetSpeed":
+                    bpm = action[2] * action[3]
+                print(action)
+    
         current_tile += 1
         
